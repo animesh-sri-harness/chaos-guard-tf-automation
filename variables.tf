@@ -40,7 +40,7 @@ variable "approver_user_group_ids" {
 ##############################################################################
 
 variable "k8s_prod_infra_ids" {
-  description = "Chaos infrastructure IDs (Harness Delegate or Dedicated Chaos Infra) representing production Kubernetes clusters that the Kubernetes guardrails must protect. Must contain at least one ID, since every condition in k8s-chaos-guard.tf references infra_spec, and the Harness API rejects k8s_spec without it (and infra_spec.infra_ids rejects an empty list)."
+  description = "Chaos infrastructure IDs (Harness Delegate or Dedicated Chaos Infra) representing production Kubernetes clusters (e.g. EKS), referenced by Conditions 1-6 in k8s-chaos-guard.tf (Condition 7 uses openshift_prod_infra_ids instead). Must contain at least one ID: the Harness API rejects infra_spec.infra_ids with an empty list."
   type        = list(string)
   default     = []
 

@@ -81,10 +81,9 @@ Reference docs:
 Deduplicated, this is 7 distinct faults guarded (by name) below: `pod-delete`,
 `pod-api-block`, `pod-network-loss`, `pod-cpu-hog`, `time-chaos`,
 `pod-network-latency`, `node-network-loss`, `pod-memory-hog`. On top of
-that, Condition 7 blankly blocks the entire node-fault category on
-OpenShift (see below), which separately covers `node-cpu-hog` and
-`node-memory-hog` there even though neither is referenced by a deployed
-template.
+that, Condition 7 entirely blocks the node-fault category on OpenShift
+(see below), which separately covers `node-cpu-hog` and `node-memory-hog`
+there even though neither is referenced by a deployed template.
 
 `pod-jvm-method-exception` is the only pod-level fault from the full
 catalog that stays unguarded: it isn't referenced by any deployed
@@ -104,9 +103,9 @@ template-driven guardrails and Condition 7.
 
 ### Kubernetes: complete node-fault catalog (blocked entirely on OpenShift)
 
-Per the CMP OpenShift requirement, Condition 7 blocks every fault in
-Harness's "Node faults" classification on OpenShift chaos infra,
-regardless of whether a template references it today:
+Condition 7 blocks every fault in Harness's "Node faults" classification
+on OpenShift chaos infra, regardless of whether a template references it
+today:
 
 | Fault | Risk |
 |---|---|
@@ -170,7 +169,7 @@ time windows) per environment via `terraform.tfvars`.
 - A Harness **Next-Gen Platform API key** with permissions to manage
   ChaosGuard conditions and rules in the target org/project
 - Harness Delegate or Dedicated Chaos Infra IDs for the production
-  Kubernetes (including OpenShift), and Linux infrastructure to be
+  Kubernetes (including OpenShift) and Linux infrastructure to be
   protected
 
 ## Usage
@@ -235,11 +234,16 @@ terraform validate
 ```
 
 This module has also been applied end-to-end against a live Harness
-account (create, verify via API, then destroy); all resources were created
-successfully (20 at the time; 22 after adding the OpenShift node-fault
-guardrail in `k8s-chaos-guard.tf`, re-verified via `terraform plan`). Two
-API constraints that `terraform validate` cannot catch (the provider
-schema doesn't enforce them) are already handled in this module:
+account (create, verify via API, then destroy): once for the full module
+(20 resources, before the OpenShift node-fault guardrail existed), and
+again scoped specifically to Condition 7 / Rule 7 after adding the
+OpenShift node-fault guardrail. Both runs created successfully, and the
+live condition/rule were independently confirmed via the Harness API to
+match the Terraform configuration exactly before being destroyed. A
+`terraform plan` against the current, full configuration confirms all 22
+resources plan cleanly. Two API constraints that `terraform validate`
+cannot catch (the provider schema doesn't enforce them) are already
+handled in this module:
 
 1. **Every `k8s_spec` must set all three sub-specs** (`application_spec`,
    `chaos_service_account_spec`, `infra_spec`), or the API rejects the

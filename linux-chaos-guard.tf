@@ -1,10 +1,8 @@
 ##############################################################################
 # ChaosGuard: Linux guardrails
 #
-# 4 condition/rule pairs covering the Linux fault catalog: linux-cpu-stress,
-# linux-memory-stress, linux-network-latency, linux-network-loss, and
-# process-kill. See README.md for the fault inventory and per-guardrail
-# summary; variables are declared in variables.tf, outputs in outputs.tf.
+# 4 condition/rule pairs. See README.md for the fault inventory and
+# per-guardrail summary; variables in variables.tf, outputs in outputs.tf.
 #
 # Docs:
 #   https://developer.harness.io/docs/resilience-testing/chaos-testing/governance/governance-in-execution/govern-run/
