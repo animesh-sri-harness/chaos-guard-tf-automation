@@ -10,24 +10,16 @@
 #   https://registry.terraform.io/providers/harness/harness/0.42.1/docs/resources/chaos_security_governance_rule
 ##############################################################################
 
-# k8s_spec requires all three sub-specs (application_spec,
-# chaos_service_account_spec, infra_spec) even when a condition only
-# filters on one. This fake service account is a NOT_EQUAL_TO "match
-# everything" placeholder for chaos_service_account_spec when a condition
-# isn't meant to filter by service account.
+# k8s_spec requires all three sub-specs even when a condition filters on
+# just one. This is a NOT_EQUAL_TO "match everything" placeholder for
+# chaos_service_account_spec on conditions that don't filter by service account.
 locals {
   match_all_chaos_service_account = ["__chaos-guard-match-all__"]
 
-  # Complete Kubernetes "node fault" catalog (docs link below). Listed
-  # explicitly because the condition API matches faults by exact name;
-  # there's no "match this whole category" operator to rely on instead.
-  #
-  # Excludes "Kubelet density": that's a separate "Kube-Resilience" fault,
-  # not a standard node fault. Add it here too if it should also be blocked.
-  #
-  # Docs: https://developer.harness.io/resilience-testing/chaos-engineering/faults/chaos-fault-categories/kubernetes/node
-  # To refresh this list, re-check that page or query:
-  #   harness_list(resource_type="chaos_fault", filters={category: "node", infrastructure: "KubernetesV2"})
+  # Complete Kubernetes "node fault" catalog, listed by exact name since the
+  # condition API has no "match this category" operator. Excludes "Kubelet
+  # density" (a separate fault category). See README's "Keeping the
+  # node-fault list current" for how to refresh this list.
   node_level_faults = [
     "kubelet-service-kill",
     "node-cpu-hog",
@@ -441,12 +433,6 @@ resource "harness_chaos_security_governance_rule" "k8s_block_resource_hogs_busin
 
 ##############################################################################
 # Condition 7: block every node-level fault on production Kubernetes infra
-#
-# Blocks the complete node-fault catalog (local.node_level_faults) so a
-# newly added node-fault template can't slip through unprotected, even if
-# no template references it yet. Applies to var.k8s_prod_infra_ids like
-# every other condition above, regardless of platform (EKS, OpenShift, or
-# otherwise): node-level faults are equally destructive on any of them.
 ##############################################################################
 
 resource "harness_chaos_security_governance_condition" "k8s_block_all_node_faults" {
