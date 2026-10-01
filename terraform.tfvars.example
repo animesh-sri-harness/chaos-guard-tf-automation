@@ -1,0 +1,36 @@
+# Copy this file to terraform.tfvars (or <env>.tfvars) and fill in real
+# values before running `terraform apply`. Do NOT commit the filled-in file —
+# terraform.tfvars is already excluded via .gitignore.
+#
+# Provider credentials (HARNESS_ACCOUNT_ID, HARNESS_PLATFORM_API_KEY,
+# HARNESS_ENDPOINT) are supplied via environment variables, not variables
+# here — see versions.tf and README.md.
+
+org_id     = "your_org_id"
+project_id = "your_project_id"
+
+# Harness chaos infrastructure IDs (Delegate or Dedicated Chaos Infra) that
+# represent production. Both are required (at least one ID each).
+k8s_prod_infra_ids   = ["your-k8s-prod-infra-id"]
+linux_prod_infra_ids = ["your-linux-prod-infra-id"]
+
+# Kubernetes namespaces that should never be targeted by disruptive faults
+# without extra approval.
+protected_namespaces = ["prod", "payments", "checkout"]
+
+# Chaos service accounts approved to run pod-api-block.
+allowed_chaos_service_accounts = ["litmus", "chaos-service-account"]
+
+# Harness user group(s) every rule in this module applies to.
+approver_user_group_ids = ["_project_all_users"]
+
+# Time windows — adjust to your organization's calendar.
+rule_time_zone                = "Asia/Dubai"
+always_on_start_time          = 1711238400000 # epoch millis
+always_on_duration            = "24h"
+business_hours_start_time     = 1711267200000 # epoch millis
+business_hours_duration       = "9h"
+change_freeze_start_time      = 1711238400000 # epoch millis
+change_freeze_duration        = "24h"
+change_freeze_recurrence_type = "Daily"
+change_freeze_until           = -1
