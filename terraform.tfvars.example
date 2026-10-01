@@ -10,9 +10,14 @@ org_id     = "your_org_id"
 project_id = "your_project_id"
 
 # Harness chaos infrastructure IDs (Delegate or Dedicated Chaos Infra) that
-# represent production. Both are required (at least one ID each).
+# represent production. All three are required (at least one ID each).
 k8s_prod_infra_ids   = ["your-k8s-prod-infra-id"]
 linux_prod_infra_ids = ["your-linux-prod-infra-id"]
+
+# OpenShift chaos infrastructure IDs specifically (a separate pool from
+# k8s_prod_infra_ids above). Used only to scope the node-fault blanket
+# block in k8s-chaos-guard.tf to OpenShift; does not affect EKS.
+openshift_prod_infra_ids = ["your-openshift-prod-infra-id"]
 
 # Kubernetes namespaces that should never be targeted by disruptive faults
 # without extra approval.

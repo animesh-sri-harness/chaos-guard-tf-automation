@@ -62,6 +62,17 @@ variable "allowed_chaos_service_accounts" {
   default     = ["litmus", "chaos-service-account"]
 }
 
+variable "openshift_prod_infra_ids" {
+  description = "Chaos infrastructure IDs representing production OpenShift clusters. OpenShift is registered with Harness Chaos Engineering the same way as any other Kubernetes target (infra_type = \"KubernetesV2\"), so this is just a separate pool of infra IDs from k8s_prod_infra_ids: it scopes the node-fault blanket-block guardrail (see k8s-chaos-guard.tf) to OpenShift infra only, without changing behavior on EKS or any other Kubernetes infra already covered by k8s_prod_infra_ids. Must contain at least one ID."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = length(var.openshift_prod_infra_ids) > 0
+    error_message = "openshift_prod_infra_ids must contain at least one OpenShift chaos infrastructure ID before applying the node-fault guardrail in k8s-chaos-guard.tf."
+  }
+}
+
 ##############################################################################
 # Linux-specific variables
 ##############################################################################

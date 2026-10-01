@@ -39,10 +39,10 @@ Each guardrail in this module is one condition + one rule pair.
 
 | File | Resources created |
 |---|---|
-| `k8s-chaos-guard.tf` | 6 conditions + 6 rules (Kubernetes faults) |
+| `k8s-chaos-guard.tf` | 7 conditions + 7 rules (Kubernetes faults) |
 | `linux-chaos-guard.tf` | 4 conditions + 4 rules (Linux faults) |
 
-20 resources total. IDs are exposed via `outputs.tf`.
+22 resources total. IDs are exposed via `outputs.tf`.
 
 Reference docs:
 - [Configure Rules and Conditions for ChaosGuard](https://developer.harness.io/docs/resilience-testing/chaos-testing/governance/governance-in-execution/govern-run/)
@@ -78,14 +78,18 @@ Reference docs:
 | 9 | `highblastradius-zonal-regional-failures` | `node-network-loss` |
 | 10 | `k8s-pod-progressive-memory-hog` | `pod-memory-hog` |
 
-Deduplicated, this is 7 distinct faults guarded below: `pod-delete`,
+Deduplicated, this is 7 distinct faults guarded (by name) below: `pod-delete`,
 `pod-api-block`, `pod-network-loss`, `pod-cpu-hog`, `time-chaos`,
-`pod-network-latency`, `node-network-loss`, `pod-memory-hog`.
+`pod-network-latency`, `node-network-loss`, `pod-memory-hog`. On top of
+that, Condition 7 blankly blocks the entire node-fault category on
+OpenShift (see below), which separately covers `node-cpu-hog` and
+`node-memory-hog` there even though neither is referenced by a deployed
+template.
 
-`node-cpu-hog`, `node-memory-hog`, and `pod-jvm-method-exception` are **not**
-guarded. None are among the templates listed above. `node-network-loss` is
-guarded even though it's node-scoped, because it backs
-`highblastradius-zonal-regional-failures`, which is deployed.
+`pod-jvm-method-exception` is the only pod-level fault from the full
+catalog that stays unguarded: it isn't referenced by any deployed
+template and isn't a node-level fault, so it's out of scope for both the
+template-driven guardrails and Condition 7.
 
 | Fault | Risk |
 |---|---|
@@ -96,7 +100,31 @@ guarded even though it's node-scoped, because it backs
 | `pod-memory-hog` | Medium: resource exhaustion |
 | `pod-network-latency` | Medium |
 | `time-chaos` | Critical: skews system clock; can break TLS/cert validation, auth tokens, schedulers |
-| `node-network-loss` | Critical: simulates a full zonal/regional outage; the only node-scoped fault deployed |
+| `node-network-loss` | Critical: simulates a full zonal/regional outage |
+
+### Kubernetes: complete node-fault catalog (blocked entirely on OpenShift)
+
+Per the CMP OpenShift requirement, Condition 7 blocks every fault in
+Harness's "Node faults" classification on OpenShift chaos infra,
+regardless of whether a template references it today:
+
+| Fault | Risk |
+|---|---|
+| `kubelet-service-kill` | Critical: node goes `NotReady` and evicts everything on it, faster-recovering than a full restart |
+| `node-cpu-hog` | High: resource exhaustion, affects every pod on the node |
+| `node-drain` | High: evicts every pod on the node (respecting PodDisruptionBudgets) |
+| `node-io-stress` | High: disk I/O exhaustion, affects every pod on the node |
+| `node-memory-hog` | High: resource exhaustion, affects every pod on the node |
+| `node-network-latency` | High: affects every pod, DaemonSet, and control-plane agent on the node |
+| `node-network-loss` | Critical: simulates a full zonal/regional outage |
+| `node-restart` | Critical: full node reboot |
+| `node-taint` | Medium: cordons future scheduling; does not immediately evict running pods |
+
+This list does **not** include "Kubelet density" (`kubelet-density`), which
+lives in Harness's separate "Kube-Resilience" fault category rather than
+the standard Kubernetes node-fault classification. See
+[Keeping the node-fault list current](#keeping-the-node-fault-list-current)
+below.
 
 ### Linux fault catalog
 
@@ -123,6 +151,7 @@ time windows) per environment via `terraform.tfvars`.
 | 4 | Protected-namespace network faults | `pod-network-loss`, `pod-network-latency`, `pod-api-block` | `var.protected_namespaces`, always on |
 | 5 | Approved service account required | `pod-api-block` run by anything outside `var.allowed_chaos_service_accounts` | `var.k8s_prod_infra_ids`, always on |
 | 6 | Business-hours resource-hog freeze | `pod-cpu-hog`, `pod-memory-hog` | `var.k8s_prod_infra_ids`, `var.business_hours_*` window |
+| 7 | Node-fault blanket block (OpenShift) | All 9 node-level faults (see [catalog](#kubernetes-complete-node-fault-catalog-blocked-entirely-on-openshift)) | `var.openshift_prod_infra_ids`, always on |
 
 ### Linux (`linux-chaos-guard.tf`)
 
@@ -141,7 +170,8 @@ time windows) per environment via `terraform.tfvars`.
 - A Harness **Next-Gen Platform API key** with permissions to manage
   ChaosGuard conditions and rules in the target org/project
 - Harness Delegate or Dedicated Chaos Infra IDs for the production
-  Kubernetes/Linux infrastructure to be protected
+  Kubernetes (including OpenShift), and Linux infrastructure to be
+  protected
 
 ## Usage
 
@@ -175,9 +205,13 @@ time windows) per environment via `terraform.tfvars`.
 
 ## Customizing
 
-- `k8s_prod_infra_ids` / `linux_prod_infra_ids`: Harness chaos
-  infrastructure IDs representing production. **Required, at least one
-  each**, since the API rejects an empty `infra_ids` list.
+- `k8s_prod_infra_ids` / `linux_prod_infra_ids` / `openshift_prod_infra_ids`:
+  Harness chaos infrastructure IDs representing production. **Required, at
+  least one each**, since the API rejects an empty `infra_ids` list.
+  `openshift_prod_infra_ids` is a separate pool from `k8s_prod_infra_ids`:
+  it scopes Condition 7 (the node-fault blanket block) to OpenShift only,
+  leaving EKS/other Kubernetes infra in `k8s_prod_infra_ids` unaffected by
+  that guardrail.
 - `protected_namespaces`: Kubernetes namespaces that should never be
   targeted without extra approval.
 - `approver_user_group_ids`: user group(s) the rules apply to (e.g.
@@ -201,10 +235,11 @@ terraform validate
 ```
 
 This module has also been applied end-to-end against a live Harness
-account (create, verify via API, then destroy); all 20 resources were
-created successfully. Two API constraints that `terraform validate` cannot
-catch (the provider schema doesn't enforce them) are already handled in
-this module:
+account (create, verify via API, then destroy); all resources were created
+successfully (20 at the time; 22 after adding the OpenShift node-fault
+guardrail in `k8s-chaos-guard.tf`, re-verified via `terraform plan`). Two
+API constraints that `terraform validate` cannot catch (the provider
+schema doesn't enforce them) are already handled in this module:
 
 1. **Every `k8s_spec` must set all three sub-specs** (`application_spec`,
    `chaos_service_account_spec`, `infra_spec`), or the API rejects the
@@ -213,4 +248,27 @@ this module:
    `local.match_all_chaos_service_account` in `k8s-chaos-guard.tf`).
 2. **`infra_spec.infra_ids` needs at least one entry**: enforced by the
    `length(...) > 0` validation on `k8s_prod_infra_ids` /
-   `linux_prod_infra_ids` in `variables.tf`.
+   `linux_prod_infra_ids` / `openshift_prod_infra_ids` in `variables.tf`.
+
+## Keeping the node-fault list current
+
+Condition 7 (`k8s_block_all_node_faults_openshift`) blocks node-level
+faults by explicit name, listed in `local.node_level_faults` in
+`k8s-chaos-guard.tf`. This is deliberate: the ChaosGuard condition API
+matches faults individually (`fault_spec.faults.name`), and the
+Terraform-exposed schema for this resource has no "match this entire
+category" operator to fall back on, so a prefix pattern like `node-*`
+would also be unreliable (it wouldn't match `kubelet-service-kill`, which
+is categorized as a node fault despite its name).
+
+To re-verify the list is still complete, or to update it after Harness
+ships a new node-level fault:
+
+- Check the [Kubernetes node-fault category docs](https://developer.harness.io/resilience-testing/chaos-engineering/faults/chaos-fault-categories/kubernetes/node),
+  or
+- Query the catalog directly: `harness_list(resource_type="chaos_fault",
+  filters={category: "node", infrastructure: "KubernetesV2"})` via the
+  Harness MCP server / API.
+
+Then add any new fault's identifier to `local.node_level_faults` and
+re-apply; Condition 7's `dynamic "faults"` block picks it up automatically.

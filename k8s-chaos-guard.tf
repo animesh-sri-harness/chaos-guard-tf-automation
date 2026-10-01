@@ -20,6 +20,43 @@
 # wherever a condition isn't meant to filter by service account.
 locals {
   match_all_chaos_service_account = ["__chaos-guard-match-all__"]
+
+  # Complete catalog of Kubernetes node-level faults ("Node faults /
+  # infrastructure-based faults" in Harness's fault classification), as
+  # documented at:
+  #   https://developer.harness.io/resilience-testing/chaos-engineering/faults/chaos-fault-categories/kubernetes/node
+  #   https://developer.harness.io/resilience-testing/chaos-engineering/faults/chaos-fault-categories/kubernetes/classification
+  # Checked October 2026.
+  #
+  # The ChaosGuard condition API matches faults individually by exact name
+  # (fault_type = "FAULT"); the Terraform provider does not expose a
+  # "match this whole category" operator, so Condition 7 below enumerates
+  # every fault in this category explicitly instead.
+  #
+  # NOT included: "Kubelet density" (fault id kubelet-density). It lives
+  # under the separate "Kube-Resilience" fault category (an "Advanced"
+  # fault with its own RBAC requirements), not under the standard
+  # "Kubernetes > Node" classification this list covers. Add it to this
+  # list (and confirm its exact fault_id) if OpenShift teams should also
+  # be blocked from running it.
+  #
+  # MAINTENANCE: whenever Harness ships a new Kubernetes node-level fault,
+  # add its fault_id here and re-apply so Condition 7 keeps blocking the
+  # complete set. Check the current catalog either via the docs page above
+  # or via the Harness MCP server / API:
+  #   harness_list(resource_type="chaos_fault",
+  #                filters={category: "node", infrastructure: "KubernetesV2"})
+  node_level_faults = [
+    "kubelet-service-kill",
+    "node-cpu-hog",
+    "node-drain",
+    "node-io-stress",
+    "node-memory-hog",
+    "node-network-latency",
+    "node-network-loss",
+    "node-restart",
+    "node-taint",
+  ]
 }
 
 ##############################################################################
@@ -412,6 +449,82 @@ resource "harness_chaos_security_governance_rule" "k8s_block_resource_hogs_busin
     time_zone  = var.rule_time_zone
     start_time = var.business_hours_start_time
     duration   = var.business_hours_duration
+
+    recurrence {
+      type  = "Daily"
+      until = -1
+    }
+  }
+}
+
+##############################################################################
+# Condition 7: block every node-level fault on OpenShift (CMP requirement)
+#
+# CMP OpenShift requirement: application teams must not be able to run any
+# node-level fault on the OpenShift chaos infrastructure, regardless of
+# whether that fault is referenced by a deployed template today. This
+# blocks the complete node-fault catalog (local.node_level_faults above) so
+# a newly added node-fault template doesn't slip through unprotected.
+#
+# Scoped to var.openshift_prod_infra_ids only: existing guardrails above
+# (e.g. Condition 1 and Condition 3) still apply to var.k8s_prod_infra_ids
+# as before, so EKS behavior is unchanged by this addition.
+##############################################################################
+
+resource "harness_chaos_security_governance_condition" "k8s_block_all_node_faults_openshift" {
+  org_id      = var.org_id
+  project_id  = var.project_id
+  name        = "block-all-node-faults-openshift"
+  description = "Matches every Kubernetes node-level fault (see local.node_level_faults) against the OpenShift chaos infrastructure. Node-level faults disrupt the node itself, and everything scheduled on it, so application teams must not be able to run any of them, whether or not a template referencing that fault exists today."
+  infra_type  = "KubernetesV2"
+
+  fault_spec {
+    operator = "EQUAL_TO"
+
+    dynamic "faults" {
+      for_each = local.node_level_faults
+      content {
+        fault_type = "FAULT"
+        name       = faults.value
+      }
+    }
+  }
+
+  k8s_spec {
+    # Wildcards: node faults target the node itself, not a namespace or a
+    # service account, so this condition only filters by infra.
+    application_spec {
+      operator = "NOT_EQUAL_TO"
+    }
+
+    chaos_service_account_spec {
+      operator         = "NOT_EQUAL_TO"
+      service_accounts = local.match_all_chaos_service_account
+    }
+
+    infra_spec {
+      operator  = "EQUAL_TO"
+      infra_ids = var.openshift_prod_infra_ids
+    }
+  }
+
+  tags = ["chaos-guard", "k8s", "node-fault", "openshift", "critical"]
+}
+
+resource "harness_chaos_security_governance_rule" "k8s_block_all_node_faults_openshift" {
+  org_id         = var.org_id
+  project_id     = var.project_id
+  name           = "block-all-node-faults-openshift"
+  description    = "Unconditionally blocks every Kubernetes node-level fault against the OpenShift chaos infrastructure for application teams."
+  is_enabled     = true
+  condition_ids  = [harness_chaos_security_governance_condition.k8s_block_all_node_faults_openshift.id]
+  user_group_ids = var.approver_user_group_ids
+  tags           = ["chaos-guard", "k8s", "node-fault", "openshift"]
+
+  time_windows {
+    time_zone  = var.rule_time_zone
+    start_time = var.always_on_start_time
+    duration   = var.always_on_duration
 
     recurrence {
       type  = "Daily"
