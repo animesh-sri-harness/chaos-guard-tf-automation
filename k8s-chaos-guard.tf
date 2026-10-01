@@ -440,21 +440,20 @@ resource "harness_chaos_security_governance_rule" "k8s_block_resource_hogs_busin
 }
 
 ##############################################################################
-# Condition 7: block every node-level fault on OpenShift
+# Condition 7: block every node-level fault on production Kubernetes infra
 #
 # Blocks the complete node-fault catalog (local.node_level_faults) so a
 # newly added node-fault template can't slip through unprotected, even if
-# no template references it yet.
-#
-# Scoped to var.openshift_prod_infra_ids only; EKS (var.k8s_prod_infra_ids)
-# and all other guardrails above are unaffected.
+# no template references it yet. Applies to var.k8s_prod_infra_ids like
+# every other condition above, regardless of platform (EKS, OpenShift, or
+# otherwise): node-level faults are equally destructive on any of them.
 ##############################################################################
 
-resource "harness_chaos_security_governance_condition" "k8s_block_all_node_faults_openshift" {
+resource "harness_chaos_security_governance_condition" "k8s_block_all_node_faults" {
   org_id      = var.org_id
   project_id  = var.project_id
-  name        = "block-all-node-faults-openshift"
-  description = "Matches every Kubernetes node-level fault (see local.node_level_faults) against the OpenShift chaos infrastructure. Node-level faults disrupt the node itself, and everything scheduled on it, so application teams must not be able to run any of them, whether or not a template referencing that fault exists today."
+  name        = "block-all-node-faults"
+  description = "Matches every Kubernetes node-level fault (see local.node_level_faults) against production Kubernetes infra. Node-level faults disrupt the node itself, and everything scheduled on it, so application teams must not be able to run any of them, whether or not a template referencing that fault exists today."
   infra_type  = "KubernetesV2"
 
   fault_spec {
@@ -482,22 +481,22 @@ resource "harness_chaos_security_governance_condition" "k8s_block_all_node_fault
 
     infra_spec {
       operator  = "EQUAL_TO"
-      infra_ids = var.openshift_prod_infra_ids
+      infra_ids = var.k8s_prod_infra_ids
     }
   }
 
-  tags = ["chaos-guard", "k8s", "node-fault", "openshift", "critical"]
+  tags = ["chaos-guard", "k8s", "node-fault", "critical"]
 }
 
-resource "harness_chaos_security_governance_rule" "k8s_block_all_node_faults_openshift" {
+resource "harness_chaos_security_governance_rule" "k8s_block_all_node_faults" {
   org_id         = var.org_id
   project_id     = var.project_id
-  name           = "block-all-node-faults-openshift"
-  description    = "Unconditionally blocks every Kubernetes node-level fault against the OpenShift chaos infrastructure for application teams."
+  name           = "block-all-node-faults"
+  description    = "Unconditionally blocks every Kubernetes node-level fault against production Kubernetes infra for application teams."
   is_enabled     = true
-  condition_ids  = [harness_chaos_security_governance_condition.k8s_block_all_node_faults_openshift.id]
+  condition_ids  = [harness_chaos_security_governance_condition.k8s_block_all_node_faults.id]
   user_group_ids = var.approver_user_group_ids
-  tags           = ["chaos-guard", "k8s", "node-fault", "openshift"]
+  tags           = ["chaos-guard", "k8s", "node-fault"]
 
   time_windows {
     time_zone  = var.rule_time_zone

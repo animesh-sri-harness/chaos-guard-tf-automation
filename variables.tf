@@ -40,7 +40,7 @@ variable "approver_user_group_ids" {
 ##############################################################################
 
 variable "k8s_prod_infra_ids" {
-  description = "Chaos infrastructure IDs (Harness Delegate or Dedicated Chaos Infra) representing production Kubernetes clusters (e.g. EKS), referenced by Conditions 1-6 in k8s-chaos-guard.tf (Condition 7 uses openshift_prod_infra_ids instead). Must contain at least one ID: the Harness API rejects infra_spec.infra_ids with an empty list."
+  description = "Chaos infrastructure IDs (Harness Delegate or Dedicated Chaos Infra) representing production Kubernetes clusters, regardless of platform (EKS, OpenShift, or otherwise; OpenShift registers with Harness the same way as any other Kubernetes target, infra_type = \"KubernetesV2\"). Referenced by every condition in k8s-chaos-guard.tf, including the node-fault blanket block (Condition 7). Must contain at least one ID: the Harness API rejects infra_spec.infra_ids with an empty list."
   type        = list(string)
   default     = []
 
@@ -60,17 +60,6 @@ variable "allowed_chaos_service_accounts" {
   description = "Chaos service accounts that are approved to run the pod-api-block fault. Runs using any other service account (e.g. default) are blocked."
   type        = list(string)
   default     = ["litmus", "chaos-service-account"]
-}
-
-variable "openshift_prod_infra_ids" {
-  description = "Chaos infrastructure IDs representing production OpenShift clusters. OpenShift is registered with Harness Chaos Engineering the same way as any other Kubernetes target (infra_type = \"KubernetesV2\"), so this is just a separate pool of infra IDs from k8s_prod_infra_ids: it scopes the node-fault blanket-block guardrail (see k8s-chaos-guard.tf) to OpenShift infra only, without changing behavior on EKS or any other Kubernetes infra already covered by k8s_prod_infra_ids. Must contain at least one ID."
-  type        = list(string)
-  default     = []
-
-  validation {
-    condition     = length(var.openshift_prod_infra_ids) > 0
-    error_message = "openshift_prod_infra_ids must contain at least one OpenShift chaos infrastructure ID before applying the node-fault guardrail in k8s-chaos-guard.tf."
-  }
 }
 
 ##############################################################################
