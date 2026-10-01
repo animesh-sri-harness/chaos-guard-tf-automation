@@ -1,10 +1,8 @@
 ##############################################################################
 # ChaosGuard: Kubernetes (KubernetesV2) guardrails
 #
-# 6 condition/rule pairs covering the 7 distinct faults behind the 10
-# Kubernetes experiment templates deployed on the account.
-# See README.md for the full template/fault inventory and per-guardrail
-# summary; variables are declared in variables.tf, outputs in outputs.tf.
+# 7 condition/rule pairs. See README.md for the fault inventory and
+# per-guardrail summary; variables in variables.tf, outputs in outputs.tf.
 #
 # Docs:
 #   https://developer.harness.io/docs/resilience-testing/chaos-testing/governance/governance-in-execution/govern-run/
@@ -12,40 +10,24 @@
 #   https://registry.terraform.io/providers/harness/harness/0.42.1/docs/resources/chaos_security_governance_rule
 ##############################################################################
 
-# The Harness API rejects a k8s_spec unless all three sub-specs
-# (application_spec, chaos_service_account_spec, infra_spec) are set, even
-# when a condition only needs to filter on one dimension. This sentinel
-# service account (one no real chaos run will ever use) is used as a
-# NOT_EQUAL_TO "match everything" placeholder for chaos_service_account_spec
-# wherever a condition isn't meant to filter by service account.
+# k8s_spec requires all three sub-specs (application_spec,
+# chaos_service_account_spec, infra_spec) even when a condition only
+# filters on one. This fake service account is a NOT_EQUAL_TO "match
+# everything" placeholder for chaos_service_account_spec when a condition
+# isn't meant to filter by service account.
 locals {
   match_all_chaos_service_account = ["__chaos-guard-match-all__"]
 
-  # Complete catalog of Kubernetes node-level faults ("Node faults /
-  # infrastructure-based faults" in Harness's fault classification), as
-  # documented at:
-  #   https://developer.harness.io/resilience-testing/chaos-engineering/faults/chaos-fault-categories/kubernetes/node
-  #   https://developer.harness.io/resilience-testing/chaos-engineering/faults/chaos-fault-categories/kubernetes/classification
-  # Checked October 2026.
+  # Complete Kubernetes "node fault" catalog (docs link below). Listed
+  # explicitly because the condition API matches faults by exact name;
+  # there's no "match this whole category" operator to rely on instead.
   #
-  # The ChaosGuard condition API matches faults individually by exact name
-  # (fault_type = "FAULT"); the Terraform provider does not expose a
-  # "match this whole category" operator, so Condition 7 below enumerates
-  # every fault in this category explicitly instead.
+  # Excludes "Kubelet density": that's a separate "Kube-Resilience" fault,
+  # not a standard node fault. Add it here too if it should also be blocked.
   #
-  # NOT included: "Kubelet density" (fault id kubelet-density). It lives
-  # under the separate "Kube-Resilience" fault category (an "Advanced"
-  # fault with its own RBAC requirements), not under the standard
-  # "Kubernetes > Node" classification this list covers. Add it to this
-  # list (and confirm its exact fault_id) if OpenShift teams should also
-  # be blocked from running it.
-  #
-  # MAINTENANCE: whenever Harness ships a new Kubernetes node-level fault,
-  # add its fault_id here and re-apply so Condition 7 keeps blocking the
-  # complete set. Check the current catalog either via the docs page above
-  # or via the Harness MCP server / API:
-  #   harness_list(resource_type="chaos_fault",
-  #                filters={category: "node", infrastructure: "KubernetesV2"})
+  # Docs: https://developer.harness.io/resilience-testing/chaos-engineering/faults/chaos-fault-categories/kubernetes/node
+  # To refresh this list, re-check that page or query:
+  #   harness_list(resource_type="chaos_fault", filters={category: "node", infrastructure: "KubernetesV2"})
   node_level_faults = [
     "kubelet-service-kill",
     "node-cpu-hog",
@@ -458,17 +440,14 @@ resource "harness_chaos_security_governance_rule" "k8s_block_resource_hogs_busin
 }
 
 ##############################################################################
-# Condition 7: block every node-level fault on OpenShift (CMP requirement)
+# Condition 7: block every node-level fault on OpenShift
 #
-# CMP OpenShift requirement: application teams must not be able to run any
-# node-level fault on the OpenShift chaos infrastructure, regardless of
-# whether that fault is referenced by a deployed template today. This
-# blocks the complete node-fault catalog (local.node_level_faults above) so
-# a newly added node-fault template doesn't slip through unprotected.
+# Blocks the complete node-fault catalog (local.node_level_faults) so a
+# newly added node-fault template can't slip through unprotected, even if
+# no template references it yet.
 #
-# Scoped to var.openshift_prod_infra_ids only: existing guardrails above
-# (e.g. Condition 1 and Condition 3) still apply to var.k8s_prod_infra_ids
-# as before, so EKS behavior is unchanged by this addition.
+# Scoped to var.openshift_prod_infra_ids only; EKS (var.k8s_prod_infra_ids)
+# and all other guardrails above are unaffected.
 ##############################################################################
 
 resource "harness_chaos_security_governance_condition" "k8s_block_all_node_faults_openshift" {
@@ -491,8 +470,7 @@ resource "harness_chaos_security_governance_condition" "k8s_block_all_node_fault
   }
 
   k8s_spec {
-    # Wildcards: node faults target the node itself, not a namespace or a
-    # service account, so this condition only filters by infra.
+    # Wildcards: this condition only filters by infra, not namespace/SA.
     application_spec {
       operator = "NOT_EQUAL_TO"
     }
