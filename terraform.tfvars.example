@@ -1,10 +1,10 @@
 # Copy this file to terraform.tfvars (or <env>.tfvars) and fill in real
-# values before running `terraform apply`. Do NOT commit the filled-in file —
+# values before running `terraform apply`. Do NOT commit the filled-in file.
 # terraform.tfvars is already excluded via .gitignore.
 #
 # Provider credentials (HARNESS_ACCOUNT_ID, HARNESS_PLATFORM_API_KEY,
 # HARNESS_ENDPOINT) are supplied via environment variables, not variables
-# here — see versions.tf and README.md.
+# here. See versions.tf and README.md.
 
 org_id     = "your_org_id"
 project_id = "your_project_id"
@@ -24,7 +24,7 @@ allowed_chaos_service_accounts = ["litmus", "chaos-service-account"]
 # Harness user group(s) every rule in this module applies to.
 approver_user_group_ids = ["_project_all_users"]
 
-# Time windows — adjust to your organization's calendar.
+# Time windows: adjust to your organization's calendar.
 rule_time_zone                = "Asia/Dubai"
 always_on_start_time          = 1711238400000 # epoch millis
 always_on_duration            = "24h"

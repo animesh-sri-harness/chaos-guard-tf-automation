@@ -1,5 +1,5 @@
 ##############################################################################
-# ChaosGuard – Kubernetes (KubernetesV2) guardrails
+# ChaosGuard: Kubernetes (KubernetesV2) guardrails
 #
 # 6 condition/rule pairs covering the 7 distinct faults behind the 10
 # Kubernetes experiment templates deployed on the account.
@@ -15,7 +15,7 @@
 # The Harness API rejects a k8s_spec unless all three sub-specs
 # (application_spec, chaos_service_account_spec, infra_spec) are set, even
 # when a condition only needs to filter on one dimension. This sentinel
-# service account — one no real chaos run will ever use — is used as a
+# service account (one no real chaos run will ever use) is used as a
 # NOT_EQUAL_TO "match everything" placeholder for chaos_service_account_spec
 # wherever a condition isn't meant to filter by service account.
 locals {
@@ -23,7 +23,7 @@ locals {
 }
 
 ##############################################################################
-# Condition 1 — block pod-delete against protected namespaces
+# Condition 1: block pod-delete against protected namespaces
 ##############################################################################
 
 resource "harness_chaos_security_governance_condition" "k8s_block_pod_delete_protected_ns" {
@@ -92,7 +92,7 @@ resource "harness_chaos_security_governance_rule" "k8s_block_pod_delete_protecte
 }
 
 ##############################################################################
-# Condition 2 — block time-chaos (clock-skew) unconditionally in production
+# Condition 2: block time-chaos (clock-skew) unconditionally in production
 ##############################################################################
 
 resource "harness_chaos_security_governance_condition" "k8s_block_time_chaos" {
@@ -154,7 +154,7 @@ resource "harness_chaos_security_governance_rule" "k8s_block_time_chaos" {
 }
 
 ##############################################################################
-# Condition 3 — block node-network-loss (zonal/regional outage) in production
+# Condition 3: block node-network-loss (zonal/regional outage) in production
 ##############################################################################
 
 resource "harness_chaos_security_governance_condition" "k8s_block_zonal_regional_outage" {
@@ -216,7 +216,7 @@ resource "harness_chaos_security_governance_rule" "k8s_block_zonal_regional_outa
 }
 
 ##############################################################################
-# Condition 4 — block network-disruption faults against protected namespaces
+# Condition 4: block network-disruption faults against protected namespaces
 ##############################################################################
 
 resource "harness_chaos_security_governance_condition" "k8s_block_network_faults_protected_ns" {
@@ -293,7 +293,7 @@ resource "harness_chaos_security_governance_rule" "k8s_block_network_faults_prot
 }
 
 ##############################################################################
-# Condition 5 — require an approved chaos service account for pod-api-block
+# Condition 5: require an approved chaos service account for pod-api-block
 ##############################################################################
 
 resource "harness_chaos_security_governance_condition" "k8s_require_approved_service_account" {
@@ -355,7 +355,7 @@ resource "harness_chaos_security_governance_rule" "k8s_require_approved_service_
 }
 
 ##############################################################################
-# Condition 6 — freeze resource-hog faults during business hours
+# Condition 6: freeze resource-hog faults during business hours
 ##############################################################################
 
 resource "harness_chaos_security_governance_condition" "k8s_block_resource_hogs_business_hours" {

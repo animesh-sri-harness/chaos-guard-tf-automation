@@ -1,5 +1,5 @@
 ##############################################################################
-# ChaosGuard – shared variables
+# ChaosGuard: shared variables
 #
 # Consumed by both k8s-chaos-guard.tf and linux-chaos-guard.tf.
 ##############################################################################
@@ -40,7 +40,7 @@ variable "approver_user_group_ids" {
 ##############################################################################
 
 variable "k8s_prod_infra_ids" {
-  description = "Chaos infrastructure IDs (Harness Delegate or Dedicated Chaos Infra) representing production Kubernetes clusters that the Kubernetes guardrails must protect. Must contain at least one ID — every condition in k8s-chaos-guard.tf references infra_spec, and the Harness API rejects k8s_spec without it (and infra_spec.infra_ids rejects an empty list)."
+  description = "Chaos infrastructure IDs (Harness Delegate or Dedicated Chaos Infra) representing production Kubernetes clusters that the Kubernetes guardrails must protect. Must contain at least one ID, since every condition in k8s-chaos-guard.tf references infra_spec, and the Harness API rejects k8s_spec without it (and infra_spec.infra_ids rejects an empty list)."
   type        = list(string)
   default     = []
 
@@ -67,7 +67,7 @@ variable "allowed_chaos_service_accounts" {
 ##############################################################################
 
 variable "linux_prod_infra_ids" {
-  description = "Chaos infrastructure IDs representing production Linux hosts/VMs that the Linux guardrails must protect. Must contain at least one ID — the Harness API rejects machine_spec.infra_spec.infra_ids with an empty list."
+  description = "Chaos infrastructure IDs representing production Linux hosts/VMs that the Linux guardrails must protect. Must contain at least one ID, since the Harness API rejects machine_spec.infra_spec.infra_ids with an empty list."
   type        = list(string)
   default     = []
 
@@ -80,7 +80,7 @@ variable "linux_prod_infra_ids" {
 variable "change_freeze_start_time" {
   description = "Epoch millis start time for the Linux change-freeze window covering all Linux faults (e.g. peak trading days, holiday freezes)."
   type        = number
-  default     = 1711238400000 # 2024-03-24T00:00:00Z – adjust per freeze calendar
+  default     = 1711238400000 # 2024-03-24T00:00:00Z (adjust per freeze calendar)
 }
 
 variable "change_freeze_duration" {
@@ -119,7 +119,7 @@ variable "rule_time_zone" {
 variable "always_on_start_time" {
   description = "Epoch millis start time for the 'always on' (24x7, Daily, no end) rules, e.g. pod-delete, time-chaos, zonal/regional-outage, network-fault and process-kill blocks."
   type        = number
-  default     = 1711238400000 # 2024-03-24T00:00:00Z – adjust to a start date relevant to your org
+  default     = 1711238400000 # 2024-03-24T00:00:00Z (adjust to a start date relevant to your org)
 }
 
 variable "always_on_duration" {
@@ -131,7 +131,7 @@ variable "always_on_duration" {
 variable "business_hours_start_time" {
   description = "Epoch millis start time for the daily business-hours change window during which resource-hog faults are blocked."
   type        = number
-  default     = 1711267200000 # 2024-03-24T08:00:00Z – adjust to your business day start
+  default     = 1711267200000 # 2024-03-24T08:00:00Z (adjust to your business day start)
 }
 
 variable "business_hours_duration" {

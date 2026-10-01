@@ -1,5 +1,5 @@
 ##############################################################################
-# ChaosGuard – Linux guardrails
+# ChaosGuard: Linux guardrails
 #
 # 4 condition/rule pairs covering the Linux fault catalog: linux-cpu-stress,
 # linux-memory-stress, linux-network-latency, linux-network-loss, and
@@ -13,7 +13,7 @@
 ##############################################################################
 
 ##############################################################################
-# Condition 1 — block process-kill unconditionally on production Linux infra
+# Condition 1: block process-kill unconditionally on production Linux infra
 ##############################################################################
 
 resource "harness_chaos_security_governance_condition" "linux_block_process_kill" {
@@ -65,7 +65,7 @@ resource "harness_chaos_security_governance_rule" "linux_block_process_kill" {
 }
 
 ##############################################################################
-# Condition 2 — freeze CPU/memory stress faults during business hours
+# Condition 2: freeze CPU/memory stress faults during business hours
 ##############################################################################
 
 resource "harness_chaos_security_governance_condition" "linux_block_resource_stress_business_hours" {
@@ -121,7 +121,7 @@ resource "harness_chaos_security_governance_rule" "linux_block_resource_stress_b
 }
 
 ##############################################################################
-# Condition 3 — block network faults against production Linux infra
+# Condition 3: block network faults against production Linux infra
 ##############################################################################
 
 resource "harness_chaos_security_governance_condition" "linux_block_network_faults" {
@@ -177,7 +177,7 @@ resource "harness_chaos_security_governance_rule" "linux_block_network_faults" {
 }
 
 ##############################################################################
-# Condition 4 — change-freeze covering all Linux faults
+# Condition 4: change-freeze covering all Linux faults
 ##############################################################################
 
 resource "harness_chaos_security_governance_condition" "linux_change_freeze_all_faults" {

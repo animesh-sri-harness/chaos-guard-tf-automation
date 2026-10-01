@@ -1,4 +1,4 @@
-# ChaosGuard – Governance in Execution
+# ChaosGuard: Governance in Execution
 
 Terraform module that provisions **ChaosGuard** guardrails for Harness
 Chaos Engineering experiments across a Kubernetes experiment template
@@ -13,15 +13,16 @@ blocks a run if it matches an active rule, based on:
 |---|---|---|
 | **WHAT** | The fault (or faults) being requested | `fault_spec` |
 | **WHERE** | The infrastructure the fault targets | `k8s_spec.infra_spec` / `machine_spec.infra_spec` |
-| **WHICH** | The application under test — namespace, kind, label, services (K8s only) | `k8s_spec.application_spec` |
+| **WHICH** | The application under test: namespace, kind, label, services (K8s only) | `k8s_spec.application_spec` |
 | **USING** | The chaos service account running the fault (K8s only) | `k8s_spec.chaos_service_account_spec` |
 
 ## Conditions and rules
 
-- **Condition** (`harness_chaos_security_governance_condition`) — a reusable
-  match definition: WHAT fault, WHERE/WHICH/USING it applies. A condition by
-  itself does nothing; it just describes a pattern of chaos runs.
-- **Rule** (`harness_chaos_security_governance_rule`) — binds one or more
+- **Condition** (`harness_chaos_security_governance_condition`): a reusable
+  match definition, WHAT fault and WHERE/WHICH/USING it applies. A
+  condition by itself does nothing; it just describes a pattern of chaos
+  runs.
+- **Rule** (`harness_chaos_security_governance_rule`): binds one or more
   conditions to:
   - **who** it applies to (`user_group_ids`)
   - **when** it's active (`time_windows`: time zone, start time, duration,
@@ -62,7 +63,7 @@ Reference docs:
 
 ## Fault inventory
 
-### Kubernetes — example deployed experiment templates
+### Kubernetes: example deployed experiment templates
 
 | # | Template name | Underlying fault |
 |---|---|---|
@@ -82,20 +83,20 @@ Deduplicated, this is 7 distinct faults guarded below: `pod-delete`,
 `pod-network-latency`, `node-network-loss`, `pod-memory-hog`.
 
 `node-cpu-hog`, `node-memory-hog`, and `pod-jvm-method-exception` are **not**
-guarded — none are among the templates listed above. `node-network-loss` is
+guarded. None are among the templates listed above. `node-network-loss` is
 guarded even though it's node-scoped, because it backs
 `highblastradius-zonal-regional-failures`, which is deployed.
 
 | Fault | Risk |
 |---|---|
-| `pod-delete` | Low–Medium — pod is rescheduled, but still disruptive in customer-facing namespaces |
-| `pod-api-block` | High — blocks egress to named hosts/ports |
-| `pod-network-loss` | High — covers the standalone, progressive, and low-blast-radius variants |
-| `pod-cpu-hog` | Medium — resource exhaustion |
-| `pod-memory-hog` | Medium — resource exhaustion |
+| `pod-delete` | Low to Medium: pod is rescheduled, but still disruptive in customer-facing namespaces |
+| `pod-api-block` | High: blocks egress to named hosts/ports |
+| `pod-network-loss` | High: covers the standalone, progressive, and low-blast-radius variants |
+| `pod-cpu-hog` | Medium: resource exhaustion |
+| `pod-memory-hog` | Medium: resource exhaustion |
 | `pod-network-latency` | Medium |
-| `time-chaos` | Critical — skews system clock; can break TLS/cert validation, auth tokens, schedulers |
-| `node-network-loss` | Critical — simulates a full zonal/regional outage; the only node-scoped fault deployed |
+| `time-chaos` | Critical: skews system clock; can break TLS/cert validation, auth tokens, schedulers |
+| `node-network-loss` | Critical: simulates a full zonal/regional outage; the only node-scoped fault deployed |
 
 ### Linux fault catalog
 
@@ -105,7 +106,7 @@ guarded even though it's node-scoped, because it backs
 | `linux-memory-stress` | Medium |
 | `linux-network-latency` | Medium |
 | `linux-network-loss` | High |
-| `process-kill` | Critical — can kill a production process outright |
+| `process-kill` | Critical: can kill a production process outright |
 
 ## Guardrails implemented
 
@@ -169,26 +170,26 @@ time windows) per environment via `terraform.tfvars`.
    ```
 
 4. Use a remote backend (S3, GCS, Harness-managed, etc.) instead of local
-   state for shared/production usage — add a `backend` block to
+   state for shared/production usage. Add a `backend` block to
    `versions.tf` or pass `-backend-config` flags to `terraform init`.
 
 ## Customizing
 
-- `k8s_prod_infra_ids` / `linux_prod_infra_ids` — Harness chaos
+- `k8s_prod_infra_ids` / `linux_prod_infra_ids`: Harness chaos
   infrastructure IDs representing production. **Required, at least one
-  each** — the API rejects an empty `infra_ids` list.
-- `protected_namespaces` — Kubernetes namespaces that should never be
+  each**, since the API rejects an empty `infra_ids` list.
+- `protected_namespaces`: Kubernetes namespaces that should never be
   targeted without extra approval.
-- `approver_user_group_ids` — user group(s) the rules apply to (e.g.
+- `approver_user_group_ids`: user group(s) the rules apply to (e.g.
   `_project_all_users` to block everyone, or a narrower non-admin group so
   SREs/on-call can bypass via a separate group).
 - `time_windows` variables (`start_time` epoch millis, `time_zone`,
-  `duration`, `recurrence`) — match your business hours / change-freeze
+  `duration`, `recurrence`): match your business hours / change-freeze
   calendar.
 - Toggle `is_enabled = false` on any
   `harness_chaos_security_governance_rule` to disable a guardrail without
   deleting it.
-- New experiment templates on the account → add a matching condition/rule
+- New experiment templates on the account: add a matching condition/rule
   pair and update the fault inventory tables above.
 
 ## Validation
@@ -199,17 +200,17 @@ terraform init -backend=false
 terraform validate
 ```
 
-This module has also been applied end-to-end against a live Harness account
-(create → verify via API → destroy) — all 20 resources were created
-successfully. Two API constraints that `terraform validate` cannot catch
-(the provider schema doesn't enforce them) are already handled in this
-module:
+This module has also been applied end-to-end against a live Harness
+account (create, verify via API, then destroy); all 20 resources were
+created successfully. Two API constraints that `terraform validate` cannot
+catch (the provider schema doesn't enforce them) are already handled in
+this module:
 
 1. **Every `k8s_spec` must set all three sub-specs** (`application_spec`,
-   `chaos_service_account_spec`, `infra_spec`) — the API rejects the
-   request otherwise. Where a condition doesn't filter on namespace or
-   service account, a "match everything" placeholder is used (see
+   `chaos_service_account_spec`, `infra_spec`), or the API rejects the
+   request. Where a condition doesn't filter on namespace or service
+   account, a "match everything" placeholder is used (see
    `local.match_all_chaos_service_account` in `k8s-chaos-guard.tf`).
-2. **`infra_spec.infra_ids` needs at least one entry** — enforced by the
+2. **`infra_spec.infra_ids` needs at least one entry**: enforced by the
    `length(...) > 0` validation on `k8s_prod_infra_ids` /
    `linux_prod_infra_ids` in `variables.tf`.
