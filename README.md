@@ -1,8 +1,8 @@
 # ChaosGuard – Governance in Execution
 
 Terraform module that provisions **ChaosGuard** guardrails for Harness
-Chaos Engineering experiments: 10 Kubernetes experiment templates and the
-Linux fault catalog.
+Chaos Engineering experiments across a Kubernetes experiment template
+catalog and the Linux fault catalog.
 
 ## What ChaosGuard does
 
@@ -62,7 +62,7 @@ Reference docs:
 
 ## Fault inventory
 
-### Kubernetes — 10 deployed experiment templates
+### Kubernetes — example deployed experiment templates
 
 | # | Template name | Underlying fault |
 |---|---|---|
@@ -82,7 +82,7 @@ Deduplicated, this is 7 distinct faults guarded below: `pod-delete`,
 `pod-network-latency`, `node-network-loss`, `pod-memory-hog`.
 
 `node-cpu-hog`, `node-memory-hog`, and `pod-jvm-method-exception` are **not**
-guarded — none are among the 10 deployed templates. `node-network-loss` is
+guarded — none are among the templates listed above. `node-network-loss` is
 guarded even though it's node-scoped, because it backs
 `highblastradius-zonal-regional-failures`, which is deployed.
 
