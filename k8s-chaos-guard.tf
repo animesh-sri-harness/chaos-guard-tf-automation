@@ -2,7 +2,7 @@
 # ChaosGuard – Kubernetes (KubernetesV2) guardrails
 #
 # 6 condition/rule pairs covering the 7 distinct faults behind the 10
-# Kubernetes experiment templates deployed on the Emirates account.
+# Kubernetes experiment templates deployed on the account.
 # See README.md for the full template/fault inventory and per-guardrail
 # summary; variables are declared in variables.tf, outputs in outputs.tf.
 #

@@ -1,8 +1,8 @@
 # ChaosGuard – Governance in Execution
 
-Terraform module that provisions **ChaosGuard** guardrails for the Harness
-Chaos Engineering experiments running on the Emirates account: 10 Kubernetes
-experiment templates and the Linux fault catalog.
+Terraform module that provisions **ChaosGuard** guardrails for Harness
+Chaos Engineering experiments: 10 Kubernetes experiment templates and the
+Linux fault catalog.
 
 ## What ChaosGuard does
 
@@ -62,7 +62,7 @@ Reference docs:
 
 ## Fault inventory
 
-### Kubernetes — 10 experiment templates on the Emirates account
+### Kubernetes — 10 deployed experiment templates
 
 | # | Template name | Underlying fault |
 |---|---|---|
