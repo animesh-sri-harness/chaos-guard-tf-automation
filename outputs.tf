@@ -1,5 +1,7 @@
 ##############################################################################
 # ChaosGuard: outputs
+#
+# Condition/rule IDs for the Kubernetes (OpenShift/OSE) and Linux guardrails.
 ##############################################################################
 
 output "k8s_chaos_guard_condition_ids" {
@@ -9,7 +11,6 @@ output "k8s_chaos_guard_condition_ids" {
     harness_chaos_security_governance_condition.k8s_block_time_chaos.id,
     harness_chaos_security_governance_condition.k8s_block_zonal_regional_outage.id,
     harness_chaos_security_governance_condition.k8s_block_network_faults_protected_ns.id,
-    harness_chaos_security_governance_condition.k8s_require_approved_service_account.id,
     harness_chaos_security_governance_condition.k8s_block_resource_hogs_business_hours.id,
     harness_chaos_security_governance_condition.k8s_block_all_node_faults.id,
   ]
@@ -22,7 +23,6 @@ output "k8s_chaos_guard_rule_ids" {
     harness_chaos_security_governance_rule.k8s_block_time_chaos.id,
     harness_chaos_security_governance_rule.k8s_block_zonal_regional_outage.id,
     harness_chaos_security_governance_rule.k8s_block_network_faults_protected_ns.id,
-    harness_chaos_security_governance_rule.k8s_require_approved_service_account.id,
     harness_chaos_security_governance_rule.k8s_block_resource_hogs_business_hours.id,
     harness_chaos_security_governance_rule.k8s_block_all_node_faults.id,
   ]

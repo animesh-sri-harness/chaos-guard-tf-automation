@@ -1,7 +1,7 @@
 ##############################################################################
 # ChaosGuard: shared variables
 #
-# Consumed by both k8s-chaos-guard.tf and linux-chaos-guard.tf.
+# Consumed by k8s-chaos-guard.tf (OSE/Kubernetes) and linux-chaos-guard.tf.
 ##############################################################################
 
 variable "org_id" {
@@ -24,14 +24,14 @@ variable "project_id" {
   }
 }
 
-variable "approver_user_group_ids" {
-  description = "Harness user group IDs that every ChaosGuard rule in this module applies to. Use '_project_all_users' to block everyone, or a narrower group of non-admin engineers so SREs/on-call can bypass via a separate group/condition."
+variable "user_groups_ids" {
+  description = "Harness user group IDs every ChaosGuard rule applies to. Use '_project_all_users' to block everyone, or a narrower group so SREs/on-call can bypass via a separate group/condition."
   type        = list(string)
   default     = ["_project_all_users"]
 
   validation {
-    condition     = length(var.approver_user_group_ids) > 0
-    error_message = "approver_user_group_ids must contain at least one user group ID."
+    condition     = length(var.user_groups_ids) > 0
+    error_message = "user_groups_ids must contain at least one user group ID."
   }
 }
 
@@ -40,7 +40,7 @@ variable "approver_user_group_ids" {
 ##############################################################################
 
 variable "k8s_prod_infra_ids" {
-  description = "Chaos infrastructure IDs (Harness Delegate or Dedicated Chaos Infra) representing production Kubernetes clusters, regardless of platform (EKS, OpenShift, or otherwise; OpenShift registers with Harness the same way as any other Kubernetes target, infra_type = \"KubernetesV2\"). Referenced by every condition in k8s-chaos-guard.tf, including the node-fault blanket block (Condition 7). Must contain at least one ID: the Harness API rejects infra_spec.infra_ids with an empty list."
+  description = "Production OSE/Kubernetes chaos infra IDs, composite \"{environmentId}/{infraId}\" (e.g. \"ose-prod/ose-cluster-01\"). Referenced by every condition in k8s-chaos-guard.tf."
   type        = list(string)
   default     = []
 
@@ -48,18 +48,28 @@ variable "k8s_prod_infra_ids" {
     condition     = length(var.k8s_prod_infra_ids) > 0
     error_message = "k8s_prod_infra_ids must contain at least one Kubernetes chaos infrastructure ID before applying k8s-chaos-guard.tf."
   }
+
+  validation {
+    condition     = alltrue([for id in var.k8s_prod_infra_ids : length(split("/", id)) == 2])
+    error_message = "Each k8s_prod_infra_ids entry must be in composite \"{environmentId}/{infraId}\" format (e.g. \"awseks/eksnewrtinfra\"), not a bare infra ID."
+  }
 }
 
 variable "protected_namespaces" {
-  description = "Kubernetes namespaces (e.g. payments, checkout, prod) that should never be targeted by high-impact faults without extra approval."
+  description = "Namespaces that must never be targeted by high-impact faults without extra approval."
   type        = list(string)
   default     = ["prod", "payments", "checkout"]
 }
 
-variable "allowed_chaos_service_accounts" {
-  description = "Chaos service accounts that are approved to run the pod-api-block fault. Runs using any other service account (e.g. default) are blocked."
+variable "service_accounts" {
+  description = "Every chaos service account used in this project. Keep in sync with accounts actually in use."
   type        = list(string)
-  default     = ["litmus", "chaos-service-account"]
+  default     = ["litmus"]
+
+  validation {
+    condition     = length(var.service_accounts) > 0
+    error_message = "service_accounts must contain at least one chaos service account."
+  }
 }
 
 ##############################################################################
@@ -67,13 +77,18 @@ variable "allowed_chaos_service_accounts" {
 ##############################################################################
 
 variable "linux_prod_infra_ids" {
-  description = "Chaos infrastructure IDs representing production Linux hosts/VMs that the Linux guardrails must protect. Must contain at least one ID, since the Harness API rejects machine_spec.infra_spec.infra_ids with an empty list."
+  description = "Production Linux host/VM chaos infra IDs, composite \"{environmentId}/{infraId}\" (e.g. \"awslinux/prod-vm-pool\")."
   type        = list(string)
   default     = []
 
   validation {
     condition     = length(var.linux_prod_infra_ids) > 0
     error_message = "linux_prod_infra_ids must contain at least one Linux chaos infrastructure ID before applying linux-chaos-guard.tf."
+  }
+
+  validation {
+    condition     = alltrue([for id in var.linux_prod_infra_ids : length(split("/", id)) == 2])
+    error_message = "Each linux_prod_infra_ids entry must be in composite \"{environmentId}/{infraId}\" format (e.g. \"awslinux/prod-vm-pool\"), not a bare infra ID."
   }
 }
 
@@ -117,7 +132,7 @@ variable "rule_time_zone" {
 }
 
 variable "always_on_start_time" {
-  description = "Epoch millis start time for the 'always on' (24x7, Daily, no end) rules, e.g. pod-delete, time-chaos, zonal/regional-outage, network-fault and process-kill blocks."
+  description = "Epoch millis start time for the 'always on' (24x7, Daily, no end) rules."
   type        = number
   default     = 1711238400000 # 2024-03-24T00:00:00Z (adjust to a start date relevant to your org)
 }

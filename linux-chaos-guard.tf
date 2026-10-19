@@ -1,8 +1,11 @@
 ##############################################################################
 # ChaosGuard: Linux guardrails
 #
+# For VM/host-based chaos infra, outside the OSE/Kubernetes target covered
+# by k8s-chaos-guard.tf.
+#
 # 4 condition/rule pairs. See README.md for the fault inventory and
-# per-guardrail summary; variables in variables.tf, outputs in outputs.tf.
+# per-guardrail summary.
 #
 # Docs:
 #   https://developer.harness.io/docs/resilience-testing/chaos-testing/governance/governance-in-execution/govern-run/
@@ -47,7 +50,7 @@ resource "harness_chaos_security_governance_rule" "linux_block_process_kill" {
   description    = "Unconditionally blocks process-kill experiments against production Linux infra."
   is_enabled     = true
   condition_ids  = [harness_chaos_security_governance_condition.linux_block_process_kill.id]
-  user_group_ids = var.approver_user_group_ids
+  user_group_ids = var.user_groups_ids
   tags           = ["chaos-guard", "linux", "process-kill"]
 
   time_windows {
@@ -103,7 +106,7 @@ resource "harness_chaos_security_governance_rule" "linux_block_resource_stress_b
   description    = "Blocks linux-cpu-stress/linux-memory-stress on production Linux infra during business hours; allowed outside the window or during an approved game day."
   is_enabled     = true
   condition_ids  = [harness_chaos_security_governance_condition.linux_block_resource_stress_business_hours.id]
-  user_group_ids = var.approver_user_group_ids
+  user_group_ids = var.user_groups_ids
   tags           = ["chaos-guard", "linux", "resource-hog"]
 
   time_windows {
@@ -159,7 +162,7 @@ resource "harness_chaos_security_governance_rule" "linux_block_network_faults" {
   description    = "Blocks linux-network-latency/linux-network-loss against production Linux infra at all times."
   is_enabled     = true
   condition_ids  = [harness_chaos_security_governance_condition.linux_block_network_faults.id]
-  user_group_ids = var.approver_user_group_ids
+  user_group_ids = var.user_groups_ids
   tags           = ["chaos-guard", "linux", "network"]
 
   time_windows {
@@ -223,7 +226,7 @@ resource "harness_chaos_security_governance_rule" "linux_change_freeze_all_fault
   description    = "Single toggle to block all Linux chaos experiments against production infra during a change-freeze window (e.g. peak trading days, holiday freezes)."
   is_enabled     = true
   condition_ids  = [harness_chaos_security_governance_condition.linux_change_freeze_all_faults.id]
-  user_group_ids = var.approver_user_group_ids
+  user_group_ids = var.user_groups_ids
   tags           = ["chaos-guard", "linux", "change-freeze"]
 
   time_windows {

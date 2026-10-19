@@ -1,8 +1,8 @@
 # ChaosGuard: Governance in Execution
 
 Terraform module that provisions **ChaosGuard** guardrails for Harness
-Chaos Engineering experiments across a Kubernetes experiment template
-catalog and the Linux fault catalog.
+Chaos Engineering experiments, with **OpenShift (OSE)** as the primary
+target and a Linux fault catalog for VM/host-based chaos infra.
 
 ## What ChaosGuard does
 
@@ -39,10 +39,10 @@ Each guardrail in this module is one condition + one rule pair.
 
 | File | Resources created |
 |---|---|
-| `k8s-chaos-guard.tf` | 7 conditions + 7 rules (Kubernetes faults) |
+| `k8s-chaos-guard.tf` | 6 conditions + 6 rules (Kubernetes faults) |
 | `linux-chaos-guard.tf` | 4 conditions + 4 rules (Linux faults) |
 
-22 resources total. IDs are exposed via `outputs.tf`.
+20 resources total. IDs are exposed via `outputs.tf`.
 
 Reference docs:
 - [Configure Rules and Conditions for ChaosGuard](https://developer.harness.io/docs/resilience-testing/chaos-testing/governance/governance-in-execution/govern-run/)
@@ -55,7 +55,7 @@ Reference docs:
 |---|---|
 | `versions.tf` | `terraform {}` / `provider "harness" {}` requirements |
 | `variables.tf` | Input variables, with validation, shared by both fault domains |
-| `k8s-chaos-guard.tf` | Conditions + rules for the `KubernetesV2` fault catalog |
+| `k8s-chaos-guard.tf` | Conditions + rules for the `KubernetesV2` fault catalog (OSE) |
 | `linux-chaos-guard.tf` | Conditions + rules for the `Linux` fault catalog |
 | `outputs.tf` | Condition/rule IDs for every guardrail created |
 | `terraform.tfvars.example` | Template to copy to `terraform.tfvars` and fill in per environment |
@@ -78,17 +78,12 @@ Reference docs:
 | 9 | `highblastradius-zonal-regional-failures` | `node-network-loss` |
 | 10 | `k8s-pod-progressive-memory-hog` | `pod-memory-hog` |
 
-Deduplicated, this is 7 distinct faults guarded (by name) below: `pod-delete`,
+Deduplicated: 7 distinct faults guarded below (`pod-delete`,
 `pod-api-block`, `pod-network-loss`, `pod-cpu-hog`, `time-chaos`,
-`pod-network-latency`, `node-network-loss`, `pod-memory-hog`. On top of
-that, Condition 7 entirely blocks the node-fault category (see below),
-which separately covers `node-cpu-hog` and `node-memory-hog` even though
-neither is referenced by a deployed template.
+`pod-network-latency`, `node-network-loss`, `pod-memory-hog`), plus the
+entire node-fault category via Condition 6 (see below).
 
-`pod-jvm-method-exception` is the only pod-level fault from the full
-catalog that stays unguarded: it isn't referenced by any deployed
-template and isn't a node-level fault, so it's out of scope for both the
-template-driven guardrails and Condition 7.
+`pod-jvm-method-exception` is the only pod-level fault left unguarded.
 
 | Fault | Risk |
 |---|---|
@@ -101,12 +96,11 @@ template-driven guardrails and Condition 7.
 | `time-chaos` | Critical: skews system clock; can break TLS/cert validation, auth tokens, schedulers |
 | `node-network-loss` | Critical: simulates a full zonal/regional outage |
 
-### Kubernetes: complete node-fault catalog (blocked entirely, any platform)
+### Kubernetes: complete node-fault catalog (blocked entirely)
 
-Condition 7 blocks every fault in Harness's "Node faults" classification
-against production Kubernetes infra, regardless of platform (EKS,
-OpenShift, or otherwise) and regardless of whether a template references
-it today:
+Condition 6 blocks every fault in Harness's "Node faults" classification
+against production infra, regardless of whether a template references it
+today:
 
 | Fault | Risk |
 |---|---|
@@ -149,9 +143,8 @@ time windows) per environment via `terraform.tfvars`.
 | 2 | Clock-skew lockdown | `time-chaos` (`ssl-certificates-expiration`) | `var.k8s_prod_infra_ids`, always on |
 | 3 | Zonal/regional outage lockdown | `node-network-loss` (`highblastradius-zonal-regional-failures`) | `var.k8s_prod_infra_ids`, always on |
 | 4 | Protected-namespace network faults | `pod-network-loss`, `pod-network-latency`, `pod-api-block` | `var.protected_namespaces`, always on |
-| 5 | Approved service account required | `pod-api-block` run by anything outside `var.allowed_chaos_service_accounts` | `var.k8s_prod_infra_ids`, always on |
-| 6 | Business-hours resource-hog freeze | `pod-cpu-hog`, `pod-memory-hog` | `var.k8s_prod_infra_ids`, `var.business_hours_*` window |
-| 7 | Node-fault blanket block (any platform) | All 9 node-level faults (see [catalog](#kubernetes-complete-node-fault-catalog-blocked-entirely-any-platform)) | `var.k8s_prod_infra_ids`, always on |
+| 5 | Business-hours resource-hog freeze | `pod-cpu-hog`, `pod-memory-hog` | `var.k8s_prod_infra_ids`, `var.business_hours_*` window |
+| 6 | Node-fault blanket block | All 9 node-level faults (see [catalog](#kubernetes-complete-node-fault-catalog-blocked-entirely)) | `var.k8s_prod_infra_ids`, always on |
 
 ### Linux (`linux-chaos-guard.tf`)
 
@@ -169,9 +162,8 @@ time windows) per environment via `terraform.tfvars`.
 - [Terraform](https://developer.hashicorp.com/terraform/downloads) `>= 1.5.0`
 - A Harness **Next-Gen Platform API key** with permissions to manage
   ChaosGuard conditions and rules in the target org/project
-- Harness Delegate or Dedicated Chaos Infra IDs for the production
-  Kubernetes and Linux infrastructure to be protected (any Kubernetes
-  platform: EKS, OpenShift, or otherwise)
+- Chaos infra IDs for the OSE (or other Kubernetes) and Linux
+  infrastructure to protect
 
 ## Usage
 
@@ -205,26 +197,23 @@ time windows) per environment via `terraform.tfvars`.
 
 ## Customizing
 
-- `k8s_prod_infra_ids` / `linux_prod_infra_ids`: Harness chaos
-  infrastructure IDs representing production. **Required, at least one
-  each**, since the API rejects an empty `infra_ids` list.
-  `k8s_prod_infra_ids` covers every Kubernetes platform (EKS, OpenShift,
-  or otherwise): all 7 Kubernetes conditions, including the node-fault
-  blanket block (Condition 7), apply to this one list regardless of
-  platform.
-- `protected_namespaces`: Kubernetes namespaces that should never be
-  targeted without extra approval.
-- `approver_user_group_ids`: user group(s) the rules apply to (e.g.
+- `k8s_prod_infra_ids` / `linux_prod_infra_ids`: production chaos infra
+  IDs, composite `"{environmentId}/{infraId}"` format. **Required, at
+  least one each.**
+- `protected_namespaces`: namespaces that must never be targeted without
+  extra approval.
+- `service_accounts`: every chaos service account used in this project
+  (default `["litmus"]`).
+- `user_groups_ids`: user group(s) the rules apply to (e.g.
   `_project_all_users` to block everyone, or a narrower non-admin group so
   SREs/on-call can bypass via a separate group).
-- `time_windows` variables (`start_time` epoch millis, `time_zone`,
-  `duration`, `recurrence`): match your business hours / change-freeze
-  calendar.
+- `time_windows` variables (`start_time`, `time_zone`, `duration`,
+  `recurrence`): match your business hours / change-freeze calendar.
 - Toggle `is_enabled = false` on any
   `harness_chaos_security_governance_rule` to disable a guardrail without
   deleting it.
-- New experiment templates on the account: add a matching condition/rule
-  pair and update the fault inventory tables above.
+- New experiment templates: add a matching condition/rule pair and update
+  the fault inventory tables above.
 
 ## Validation
 
@@ -234,45 +223,33 @@ terraform init -backend=false
 terraform validate
 ```
 
-This module has also been applied end-to-end against a live Harness
-account (create, verify via API, then destroy): once for the full module
-(20 resources, before the node-fault guardrail existed), and again scoped
-specifically to Condition 7 / Rule 7 after adding the node-fault
-guardrail. Both runs created successfully, and the live condition/rule
-were independently confirmed via the Harness API to match the Terraform
-configuration exactly before being destroyed. A `terraform plan` against
-the current, full configuration confirms all 22 resources plan cleanly.
-Two API constraints that `terraform validate` cannot catch (the provider
-schema doesn't enforce them) are already handled in this module:
+`terraform validate` only checks schema, not whether a condition actually
+matches a real experiment. After applying, always run one real chaos
+experiment that should match each guardrail and confirm it's blocked.
 
-1. **Every `k8s_spec` must set all three sub-specs** (`application_spec`,
-   `chaos_service_account_spec`, `infra_spec`), or the API rejects the
-   request. Where a condition doesn't filter on namespace or service
-   account, a "match everything" placeholder is used (see
-   `local.match_all_chaos_service_account` in `k8s-chaos-guard.tf`).
-2. **`infra_spec.infra_ids` needs at least one entry**: enforced by the
-   `length(...) > 0` validation on `k8s_prod_infra_ids` /
-   `linux_prod_infra_ids` in `variables.tf`.
+### Implementation notes
+
+- **Wildcards use `EQUAL_TO` against explicit values, not `NOT_EQUAL_TO`
+  against a placeholder.** To match "any workload," `application_spec`
+  uses `EQUAL_TO` with a wildcard `workloads` entry (`kind = "*"`, empty
+  `label`/`namespace`). To match "any service account in use,"
+  `chaos_service_account_spec` uses `EQUAL_TO` against
+  `var.service_accounts`.
+- **`infra_spec.infra_ids` must use composite `"{environmentId}/
+  {infraId}"` format** (e.g. `"ose-prod/ose-cluster-01"`), matching
+  `chaos_experiment.infra_id` elsewhere in Harness. A bare infra ID is
+  schema-valid but never matches a real experiment.
 
 ## Keeping the node-fault list current
 
-Condition 7 (`k8s_block_all_node_faults`) blocks node-level faults by
-explicit name, listed in `local.node_level_faults` in
-`k8s-chaos-guard.tf`. This is deliberate: the ChaosGuard condition API
-matches faults individually (`fault_spec.faults.name`), and the
-Terraform-exposed schema for this resource has no "match this entire
-category" operator to fall back on, so a prefix pattern like `node-*`
-would also be unreliable (it wouldn't match `kubelet-service-kill`, which
-is categorized as a node fault despite its name).
+Condition 6 blocks node-level faults by explicit name, listed in
+`local.node_level_faults` in `k8s-chaos-guard.tf` (the condition API has
+no "match this category" operator).
 
-To re-verify the list is still complete, or to update it after Harness
-ships a new node-level fault:
+To check for new node-level faults after a Harness release:
 
-- Check the [Kubernetes node-fault category docs](https://developer.harness.io/resilience-testing/chaos-engineering/faults/chaos-fault-categories/kubernetes/node),
-  or
-- Query the catalog directly: `harness_list(resource_type="chaos_fault",
-  filters={category: "node", infrastructure: "KubernetesV2"})` via the
-  Harness MCP server / API.
+- Check the [Kubernetes node-fault category docs](https://developer.harness.io/resilience-testing/chaos-engineering/faults/chaos-fault-categories/kubernetes/node), or
+- Query the catalog: `harness_list(resource_type="chaos_fault",
+  filters={category: "node", infrastructure: "KubernetesV2"})`.
 
-Then add any new fault's identifier to `local.node_level_faults` and
-re-apply; Condition 7's `dynamic "faults"` block picks it up automatically.
+Add any new fault's name to `local.node_level_faults` and re-apply.

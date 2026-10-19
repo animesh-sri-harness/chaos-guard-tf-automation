@@ -1,8 +1,11 @@
 ##############################################################################
-# ChaosGuard: Kubernetes (KubernetesV2) guardrails
+# ChaosGuard: Kubernetes guardrails (KubernetesV2)
 #
-# 7 condition/rule pairs. See README.md for the fault inventory and
-# per-guardrail summary; variables in variables.tf, outputs in outputs.tf.
+# Primary target: OpenShift (OSE). Also works for any KubernetesV2 platform
+# (EKS, AKS, GKE, vanilla K8s).
+#
+# 6 condition/rule pairs. See README.md for the fault inventory and
+# per-guardrail summary.
 #
 # Docs:
 #   https://developer.harness.io/docs/resilience-testing/chaos-testing/governance/governance-in-execution/govern-run/
@@ -10,16 +13,12 @@
 #   https://registry.terraform.io/providers/harness/harness/0.42.1/docs/resources/chaos_security_governance_rule
 ##############################################################################
 
-# k8s_spec requires all three sub-specs even when a condition filters on
-# just one. This is a NOT_EQUAL_TO "match everything" placeholder for
-# chaos_service_account_spec on conditions that don't filter by service account.
+# "Match everything" uses EQUAL_TO against explicit wildcard values (see
+# README "Implementation notes"). Service-account wildcards use
+# var.service_accounts, the single source of truth for accounts in use.
 locals {
-  match_all_chaos_service_account = ["__chaos-guard-match-all__"]
-
-  # Complete Kubernetes "node fault" catalog, listed by exact name since the
-  # condition API has no "match this category" operator. Excludes "Kubelet
-  # density" (a separate fault category). See README's "Keeping the
-  # node-fault list current" for how to refresh this list.
+  # Kubernetes node-fault catalog, by exact name. See README "Keeping the
+  # node-fault list current".
   node_level_faults = [
     "kubelet-service-kill",
     "node-cpu-hog",
@@ -65,10 +64,10 @@ resource "harness_chaos_security_governance_condition" "k8s_block_pod_delete_pro
       }
     }
 
-    # Wildcard: this condition doesn't filter by service account.
+    # Not filtered by service account.
     chaos_service_account_spec {
-      operator         = "NOT_EQUAL_TO"
-      service_accounts = local.match_all_chaos_service_account
+      operator         = "EQUAL_TO"
+      service_accounts = var.service_accounts
     }
 
     infra_spec {
@@ -87,7 +86,7 @@ resource "harness_chaos_security_governance_rule" "k8s_block_pod_delete_protecte
   description    = "Blocks pod-delete from targeting protected/customer-facing namespaces at all times."
   is_enabled     = true
   condition_ids  = [harness_chaos_security_governance_condition.k8s_block_pod_delete_protected_ns.id]
-  user_group_ids = var.approver_user_group_ids
+  user_group_ids = var.user_groups_ids
   tags           = ["chaos-guard", "k8s", "pod-delete"]
 
   time_windows {
@@ -123,14 +122,20 @@ resource "harness_chaos_security_governance_condition" "k8s_block_time_chaos" {
   }
 
   k8s_spec {
-    # Wildcards: this condition only filters by infra, not namespace/SA.
+    # Filtered by infra only, not namespace/SA.
     application_spec {
-      operator = "NOT_EQUAL_TO"
+      operator = "EQUAL_TO"
+
+      workloads {
+        kind      = "*"
+        label     = ""
+        namespace = ""
+      }
     }
 
     chaos_service_account_spec {
-      operator         = "NOT_EQUAL_TO"
-      service_accounts = local.match_all_chaos_service_account
+      operator         = "EQUAL_TO"
+      service_accounts = var.service_accounts
     }
 
     infra_spec {
@@ -149,7 +154,7 @@ resource "harness_chaos_security_governance_rule" "k8s_block_time_chaos" {
   description    = "Unconditionally blocks time-chaos experiments against production Kubernetes infra."
   is_enabled     = true
   condition_ids  = [harness_chaos_security_governance_condition.k8s_block_time_chaos.id]
-  user_group_ids = var.approver_user_group_ids
+  user_group_ids = var.user_groups_ids
   tags           = ["chaos-guard", "k8s", "time-chaos"]
 
   time_windows {
@@ -185,14 +190,20 @@ resource "harness_chaos_security_governance_condition" "k8s_block_zonal_regional
   }
 
   k8s_spec {
-    # Wildcards: this condition only filters by infra, not namespace/SA.
+    # Filtered by infra only, not namespace/SA.
     application_spec {
-      operator = "NOT_EQUAL_TO"
+      operator = "EQUAL_TO"
+
+      workloads {
+        kind      = "*"
+        label     = ""
+        namespace = ""
+      }
     }
 
     chaos_service_account_spec {
-      operator         = "NOT_EQUAL_TO"
-      service_accounts = local.match_all_chaos_service_account
+      operator         = "EQUAL_TO"
+      service_accounts = var.service_accounts
     }
 
     infra_spec {
@@ -211,7 +222,7 @@ resource "harness_chaos_security_governance_rule" "k8s_block_zonal_regional_outa
   description    = "Unconditionally blocks node-network-loss (highblastradius-zonal-regional-failures) against production Kubernetes infra."
   is_enabled     = true
   condition_ids  = [harness_chaos_security_governance_condition.k8s_block_zonal_regional_outage.id]
-  user_group_ids = var.approver_user_group_ids
+  user_group_ids = var.user_groups_ids
   tags           = ["chaos-guard", "k8s", "zonal-regional-outage"]
 
   time_windows {
@@ -266,10 +277,10 @@ resource "harness_chaos_security_governance_condition" "k8s_block_network_faults
       }
     }
 
-    # Wildcard: this condition doesn't filter by service account.
+    # Not filtered by service account.
     chaos_service_account_spec {
-      operator         = "NOT_EQUAL_TO"
-      service_accounts = local.match_all_chaos_service_account
+      operator         = "EQUAL_TO"
+      service_accounts = var.service_accounts
     }
 
     infra_spec {
@@ -288,7 +299,7 @@ resource "harness_chaos_security_governance_rule" "k8s_block_network_faults_prot
   description    = "Blocks network-disruption faults from targeting protected/customer-facing namespaces at all times."
   is_enabled     = true
   condition_ids  = [harness_chaos_security_governance_condition.k8s_block_network_faults_protected_ns.id]
-  user_group_ids = var.approver_user_group_ids
+  user_group_ids = var.user_groups_ids
   tags           = ["chaos-guard", "k8s", "network"]
 
   time_windows {
@@ -304,69 +315,7 @@ resource "harness_chaos_security_governance_rule" "k8s_block_network_faults_prot
 }
 
 ##############################################################################
-# Condition 5: require an approved chaos service account for pod-api-block
-##############################################################################
-
-resource "harness_chaos_security_governance_condition" "k8s_require_approved_service_account" {
-  org_id      = var.org_id
-  project_id  = var.project_id
-  name        = "require-approved-sa-for-pod-api-block"
-  description = "Matches pod-api-block run using anything other than an approved chaos service account."
-  infra_type  = "KubernetesV2"
-
-  fault_spec {
-    operator = "EQUAL_TO"
-
-    faults {
-      fault_type = "FAULT"
-      name       = "pod-api-block"
-    }
-  }
-
-  k8s_spec {
-    # Wildcard: this condition doesn't filter by namespace.
-    application_spec {
-      operator = "NOT_EQUAL_TO"
-    }
-
-    chaos_service_account_spec {
-      operator         = "NOT_EQUAL_TO"
-      service_accounts = var.allowed_chaos_service_accounts
-    }
-
-    infra_spec {
-      operator  = "EQUAL_TO"
-      infra_ids = var.k8s_prod_infra_ids
-    }
-  }
-
-  tags = ["chaos-guard", "k8s", "service-account", "app-level"]
-}
-
-resource "harness_chaos_security_governance_rule" "k8s_require_approved_service_account" {
-  org_id         = var.org_id
-  project_id     = var.project_id
-  name           = "require-approved-sa-for-pod-api-block"
-  description    = "Blocks pod-api-block unless run with an approved chaos service account."
-  is_enabled     = true
-  condition_ids  = [harness_chaos_security_governance_condition.k8s_require_approved_service_account.id]
-  user_group_ids = var.approver_user_group_ids
-  tags           = ["chaos-guard", "k8s", "service-account"]
-
-  time_windows {
-    time_zone  = var.rule_time_zone
-    start_time = var.always_on_start_time
-    duration   = var.always_on_duration
-
-    recurrence {
-      type  = "Daily"
-      until = -1
-    }
-  }
-}
-
-##############################################################################
-# Condition 6: freeze resource-hog faults during business hours
+# Condition 5: freeze resource-hog faults during business hours
 ##############################################################################
 
 resource "harness_chaos_security_governance_condition" "k8s_block_resource_hogs_business_hours" {
@@ -390,14 +339,20 @@ resource "harness_chaos_security_governance_condition" "k8s_block_resource_hogs_
   }
 
   k8s_spec {
-    # Wildcards: this condition only filters by infra, not namespace/SA.
+    # Filtered by infra only, not namespace/SA.
     application_spec {
-      operator = "NOT_EQUAL_TO"
+      operator = "EQUAL_TO"
+
+      workloads {
+        kind      = "*"
+        label     = ""
+        namespace = ""
+      }
     }
 
     chaos_service_account_spec {
-      operator         = "NOT_EQUAL_TO"
-      service_accounts = local.match_all_chaos_service_account
+      operator         = "EQUAL_TO"
+      service_accounts = var.service_accounts
     }
 
     infra_spec {
@@ -416,7 +371,7 @@ resource "harness_chaos_security_governance_rule" "k8s_block_resource_hogs_busin
   description    = "Blocks pod-cpu-hog/pod-memory-hog on production infra during business hours; allowed outside the window or during an approved game day."
   is_enabled     = true
   condition_ids  = [harness_chaos_security_governance_condition.k8s_block_resource_hogs_business_hours.id]
-  user_group_ids = var.approver_user_group_ids
+  user_group_ids = var.user_groups_ids
   tags           = ["chaos-guard", "k8s", "resource-hog"]
 
   time_windows {
@@ -432,7 +387,7 @@ resource "harness_chaos_security_governance_rule" "k8s_block_resource_hogs_busin
 }
 
 ##############################################################################
-# Condition 7: block every node-level fault on production Kubernetes infra
+# Condition 6: block every node-level fault on production Kubernetes infra
 ##############################################################################
 
 resource "harness_chaos_security_governance_condition" "k8s_block_all_node_faults" {
@@ -455,14 +410,20 @@ resource "harness_chaos_security_governance_condition" "k8s_block_all_node_fault
   }
 
   k8s_spec {
-    # Wildcards: this condition only filters by infra, not namespace/SA.
+    # Filtered by infra only, not namespace/SA.
     application_spec {
-      operator = "NOT_EQUAL_TO"
+      operator = "EQUAL_TO"
+
+      workloads {
+        kind      = "*"
+        label     = ""
+        namespace = ""
+      }
     }
 
     chaos_service_account_spec {
-      operator         = "NOT_EQUAL_TO"
-      service_accounts = local.match_all_chaos_service_account
+      operator         = "EQUAL_TO"
+      service_accounts = var.service_accounts
     }
 
     infra_spec {
@@ -481,7 +442,7 @@ resource "harness_chaos_security_governance_rule" "k8s_block_all_node_faults" {
   description    = "Unconditionally blocks every Kubernetes node-level fault against production Kubernetes infra for application teams."
   is_enabled     = true
   condition_ids  = [harness_chaos_security_governance_condition.k8s_block_all_node_faults.id]
-  user_group_ids = var.approver_user_group_ids
+  user_group_ids = var.user_groups_ids
   tags           = ["chaos-guard", "k8s", "node-fault"]
 
   time_windows {
