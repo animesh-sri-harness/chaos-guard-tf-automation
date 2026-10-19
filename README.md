@@ -240,6 +240,14 @@ experiment that should match each guardrail and confirm it's blocked.
   `chaos_experiment.infra_id` elsewhere in Harness. A bare infra ID is
   schema-valid but never matches a real experiment.
 
+## Example: blocked experiments
+
+Real chaos experiment runs blocked by this module's guardrails:
+
+![time-chaos experiment blocked by block-time-chaos-prod](assets/chaosguard-blocked-time-chaos.png)
+
+![node-memory-hog experiment blocked by block-all-node-faults](assets/chaosguard-blocked-node-memory-hog.png)
+
 ## Keeping the node-fault list current
 
 Condition 6 blocks node-level faults by explicit name, listed in
